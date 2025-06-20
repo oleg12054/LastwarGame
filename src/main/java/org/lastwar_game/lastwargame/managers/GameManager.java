@@ -460,10 +460,10 @@ public class GameManager {
     /** ✅ Назначает игрока в команду */
     private void assignPlayerToTeam(Player player, String team) {
         playerTeams.put(player.getUniqueId(), team);
-        player.sendMessage(ChatColor.GREEN + "You have been assigned to " + (team.equals("RED") ? ChatColor.RED + "Red Team!" : ChatColor.BLUE + "Blue Team!"));
+        player.sendMessage(ChatColor.DARK_GRAY + "You have been assigned to  " + (team.equals("RED") ? ChatColor.RED + "Red Team!" : ChatColor.BLUE + "Blue Team!"));
     }
 
-    /** ✅ Получает случайного игрока из команды */
+    /** ✅ Получает случайного игрока из команды frtp */
     private Player getPlayerFromTeam(String team) {
         for (UUID playerId : playerTeams.keySet()) {
             if (playerTeams.get(playerId).equals(team)) {
