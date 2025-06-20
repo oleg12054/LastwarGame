@@ -463,7 +463,7 @@ public class GameManager {
         player.sendMessage(ChatColor.DARK_GRAY + "You have been assigned to " + (team.equals("RED") ? ChatColor.RED + "Red Team!" : ChatColor.BLUE + "Blue Team!"));
     }
 
-    /** ✅ Получает случайного игрока из команды frtp */
+    /** ✅ Получает случайного игрока из команды */
     private Player getPlayerFromTeam(String team) {
         for (UUID playerId : playerTeams.keySet()) {
             if (playerTeams.get(playerId).equals(team)) {
