@@ -7,20 +7,15 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.lastwar_game.lastwargame.GameWorlds;
 import org.lastwar_game.lastwargame.LastWarPlugin;
+
 
 import java.util.Arrays;
 import java.util.List;
 
 
 public class LobbyManager {
-    private static final List<String> gameWorlds = Arrays.asList(
-            "lastwarGame1", "lastwarGame2", "lastwarGame3", "lastwarGame4", "lastwarGame5", "lastwarGame6",
-            "lastwarGame7", "lastwarGame8", "lastwarGame9", "lastwarGame10", "lastwarGame11", "lastwarGame12",
-            "lastwarGame13", "lastwarGame14", "lastwarGame15", "lastwarGame16", "lastwarGame17", "lastwarGame18",
-            "lastwarGame19", "lastwarGame20", "lastwarGame21", "lastwarGame22", "lastwarGame23", "lastwarGame24",
-            "lastwarGame25", "lastwarGame26", "lastwarGame27"
-    );
     public static void open(Player player) {
         // Проверяем, что игрок находится в World
         if (!player.getWorld().getName().equalsIgnoreCase("World")) {
@@ -31,13 +26,26 @@ public class LobbyManager {
         Inventory gui = Bukkit.createInventory(null, 54, "Выбор игры");
 
         // Заполняем только первые 3 строки (27 слотов)
-        for (int i = 0; i < gameWorlds.size() && i < 27; i++) {
-            String worldName = gameWorlds.get(i);
+        for (int i = 0; i < GameWorlds.WORLD_NAMES.size() && i < 27; i++) {
+            String worldName = GameWorlds.WORLD_NAMES.get(i);
             World world = Bukkit.getWorld(worldName);
             int playerCount = (world != null) ? world.getPlayers().size() : 0;
 
+            // Получаем значение scoreboard objective `isGameStarted`
+            boolean isStarted = false;
+            if (Bukkit.getScoreboardManager().getMainScoreboard().getObjective(worldName) != null) {
+                isStarted = Bukkit.getScoreboardManager()
+                        .getMainScoreboard()
+                        .getObjective(worldName) != null &&
+                        Bukkit.getScoreboardManager()
+                                .getMainScoreboard()
+                                .getObjective(worldName)
+                                .getScore("isGameStarted")
+                                .getScore() == 1;
+            }
+
             Material woolColor;
-            if (playerCount >= 10) {
+            if (isStarted) {
                 woolColor = Material.RED_WOOL; // Мир заполнен
             } else if (playerCount >= 4) {
                 woolColor = Material.YELLOW_WOOL; // игра скоро начнется

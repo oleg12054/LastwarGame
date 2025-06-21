@@ -8,6 +8,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.entity.Player;
+import org.lastwar_game.lastwargame.GameWorlds;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.lastwar_game.lastwargame.managers.GameManager;
@@ -20,13 +21,6 @@ import static org.lastwar_game.lastwargame.managers.LobbyItems.*;
 
 public class PlayerWorldChangeListener implements Listener {
 
-    private static final List<String> gameWorlds = Arrays.asList(
-            "lastwarGame1", "lastwarGame2", "lastwarGame3", "lastwarGame4", "lastwarGame5", "lastwarGame6",
-            "lastwarGame7", "lastwarGame8", "lastwarGame9", "lastwarGame10", "lastwarGame11", "lastwarGame12",
-            "lastwarGame13", "lastwarGame14", "lastwarGame15", "lastwarGame16", "lastwarGame17", "lastwarGame18",
-            "lastwarGame19", "lastwarGame20", "lastwarGame21", "lastwarGame22", "lastwarGame23", "lastwarGame24",
-            "lastwarGame25", "lastwarGame26", "lastwarGame27"
-    );
 
     public static Location getRandomLocationAround(Location center, int radius) {
         double angle = Math.random() * 2 * Math.PI; // Формула нахождения радиуса
@@ -46,7 +40,7 @@ public class PlayerWorldChangeListener implements Listener {
         String toWorld = event.getTo().getWorld().getName();
 
         // ✅ Если игрок переходит из лобби в игровой мир
-        if (!gameWorlds.contains(fromWorld) && gameWorlds.contains(toWorld)) {
+        if (!GameWorlds.WORLD_NAMES.contains(fromWorld) && GameWorlds.WORLD_NAMES.contains(toWorld)) {
             Bukkit.getScheduler().runTaskLater(org.lastwar_game.lastwargame.LastWarPlugin.getInstance(), () -> {
                 World targetWorld = player.getWorld();
                 Location center = new Location(targetWorld, -164.5, 184, 297.5);
@@ -80,12 +74,12 @@ public class PlayerWorldChangeListener implements Listener {
         }
 
         // ✅ Если игрок перемещается внутри игрового мира (не сбрасываем инвентарь)
-        if (gameWorlds.contains(fromWorld) && gameWorlds.contains(toWorld)) {
+        if (GameWorlds.WORLD_NAMES.contains(fromWorld) && GameWorlds.WORLD_NAMES.contains(toWorld)) {
             return;
         }
 
         // ✅ Если игрок перемещается в лобби – очищаем инвентарь и выдаём компас
-        if (!gameWorlds.contains(toWorld)) {
+        if (!GameWorlds.WORLD_NAMES.contains(toWorld)) {
             player.getInventory().clear();
             giveCompass(player, "§eSelect Game");
             givePaper(player, "§bJoin Available Game");

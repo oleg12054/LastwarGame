@@ -10,6 +10,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.lastwar_game.lastwargame.GameWorlds;
 import org.lastwar_game.lastwargame.LastWarPlugin;
 import org.lastwar_game.lastwargame.managers.GameManager;
 import org.lastwar_game.lastwargame.managers.LobbyManager;
@@ -25,13 +26,6 @@ public class PlayerJoinListener implements Listener {
     private static final String LOBBY_WORLD = "world"; // ✅ Лобби всегда называется "world"
     private static final int MIN_PLAYERS_TO_START = 2;
     private static final int MAX_PLAYERS = 10;
-    private static final List<String> gameWorlds = Arrays.asList(
-            "lastwarGame1", "lastwarGame2", "lastwarGame3", "lastwarGame4", "lastwarGame5", "lastwarGame6",
-            "lastwarGame7", "lastwarGame8", "lastwarGame9", "lastwarGame10", "lastwarGame11", "lastwarGame12",
-            "lastwarGame13", "lastwarGame14", "lastwarGame15", "lastwarGame16", "lastwarGame17", "lastwarGame18",
-            "lastwarGame19", "lastwarGame20", "lastwarGame21", "lastwarGame22", "lastwarGame23", "lastwarGame24",
-            "lastwarGame25", "lastwarGame26", "lastwarGame27"
-    );
     public PlayerJoinListener(LastWarPlugin plugin) {
         this.lobbyManager = plugin.getLobbyManager();
     }

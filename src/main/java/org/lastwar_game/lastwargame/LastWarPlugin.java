@@ -3,6 +3,7 @@ package org.lastwar_game.lastwargame;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.lastwar_game.lastwargame.commands.EndGameCommand;
 import org.lastwar_game.lastwargame.commands.StopCommand;
+import org.lastwar_game.lastwargame.initializers.ScoreboardInitializer;
 import org.lastwar_game.lastwargame.listeners.*;
 import org.lastwar_game.lastwargame.listeners.GUI.*;
 import org.lastwar_game.lastwargame.managers.GameManager;
@@ -36,6 +37,9 @@ public class LastWarPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ClassSelectorListener(), this);
         getServer().getPluginManager().registerEvents(new ListenerPaperRedConcrete(), this);
         getServer().getPluginManager().registerEvents(new PlayerMovementFreezeListener(), this);
+
+        //взять все миры и создать скорборды для каждого из них
+        ScoreboardInitializer.initializeAll();
 
 
 

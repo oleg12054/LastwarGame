@@ -11,6 +11,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.lastwar_game.lastwargame.GameWorlds;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -18,13 +19,6 @@ import java.util.Arrays;
 import java.util.List;
 public class ListenerPaperRedConcrete implements Listener {
 
-    private static final List<String> gameWorlds = Arrays.asList(
-            "lastwarGame1", "lastwarGame2", "lastwarGame3", "lastwarGame4", "lastwarGame5", "lastwarGame6",
-            "lastwarGame7", "lastwarGame8", "lastwarGame9", "lastwarGame10", "lastwarGame11", "lastwarGame12",
-            "lastwarGame13", "lastwarGame14", "lastwarGame15", "lastwarGame16", "lastwarGame17", "lastwarGame18",
-            "lastwarGame19", "lastwarGame20", "lastwarGame21", "lastwarGame22", "lastwarGame23", "lastwarGame24",
-            "lastwarGame25", "lastwarGame26", "lastwarGame27"
-    );
 
     @EventHandler
     public void onItemUse(PlayerInteractEvent event) {
@@ -38,7 +32,7 @@ public class ListenerPaperRedConcrete implements Listener {
 
         // ✅ Бумага — выбор первого доступного игрового мира
         if (item.getType() == Material.PAPER && name.equals("§bJoin Available Game")) {
-            for (String worldName : gameWorlds) {
+            for (String worldName : GameWorlds.WORLD_NAMES) {
                 World world = Bukkit.getWorld(worldName);
                 if (world == null) continue;
 

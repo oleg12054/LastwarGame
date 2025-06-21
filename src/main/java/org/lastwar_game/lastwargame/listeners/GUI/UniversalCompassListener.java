@@ -7,6 +7,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.lastwar_game.lastwargame.GameWorlds;
 import org.lastwar_game.lastwargame.GUI.ClassSelectionGUI;
 import org.lastwar_game.lastwargame.GUI.ServerSelectionGUI;
 
@@ -15,14 +16,6 @@ import java.util.List;
 
 public class UniversalCompassListener implements Listener {
     private static final String LOBBY_WORLD = "world"; // ✅ Лобби всегда называется "world"
-
-    private static final List<String> gameWorlds = Arrays.asList(
-            "lastwarGame1", "lastwarGame2", "lastwarGame3", "lastwarGame4", "lastwarGame5", "lastwarGame6",
-            "lastwarGame7", "lastwarGame8", "lastwarGame9", "lastwarGame10", "lastwarGame11", "lastwarGame12",
-            "lastwarGame13", "lastwarGame14", "lastwarGame15", "lastwarGame16", "lastwarGame17", "lastwarGame18",
-            "lastwarGame19", "lastwarGame20", "lastwarGame21", "lastwarGame22", "lastwarGame23", "lastwarGame24",
-            "lastwarGame25", "lastwarGame26", "lastwarGame27"
-    );
 
     @EventHandler
     public void onPlayerUseCompass(PlayerInteractEvent event) {
@@ -39,7 +32,7 @@ public class UniversalCompassListener implements Listener {
             if (worldName.equalsIgnoreCase(LOBBY_WORLD)) {
                 // игрок в лобби → Открываем выбор сервера
                 ServerSelectionGUI.open(player);
-            } else if (gameWorlds.contains(worldName)) {
+            } else if (GameWorlds.WORLD_NAMES.contains(worldName)) {
                 // игрок в игровом мире → Открываем выбор класса
 //                ClassSelectionGUI.open(player);
             }

@@ -19,7 +19,10 @@ repositories {
 
 dependencies {
     compileOnly "io.papermc.paper:paper-api:1.19.4-R0.1-SNAPSHOT"
+    //compileOnly files('D:/MyServer/plugins/LastWarGameLogic.jar')
+    //D:\MyServer\plugins
 }
+
 
 def targetJavaVersion = 17
 java {
@@ -44,4 +47,7 @@ processResources {
     filesMatching('plugin.yml') {
         expand props
     }
+}
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
 }

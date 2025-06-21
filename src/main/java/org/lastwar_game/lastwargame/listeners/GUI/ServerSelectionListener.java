@@ -32,6 +32,20 @@ public class ServerSelectionListener implements Listener {
         ItemStack clickedItem = event.getCurrentItem();
         if (clickedItem == null || clickedItem.getType() == Material.AIR) return;
 
+        Material type = clickedItem.getType();
+
+        // 🔴 Сервер забит
+        if (type == Material.RED_WOOL) {
+            player.sendMessage("§cThis server is full!");
+            return;
+        }
+
+        // ⚫ Сервер перезапускается
+        if (type == Material.BLACK_WOOL) {
+            player.sendMessage("§7This server is currently restarting. Please wait...");
+            return;
+        }
+
         String worldName = clickedItem.getItemMeta().getDisplayName().replace("§a", "").trim();
 
         World world = Bukkit.getWorld(worldName);
@@ -44,6 +58,7 @@ public class ServerSelectionListener implements Listener {
             player.sendMessage("§cThis server is unavailable!");
         }
     }
+
 
     private ItemStack createCompass(String displayName) {
         ItemStack compass = new ItemStack(Material.COMPASS);
