@@ -42,6 +42,9 @@ public class ListenerPaperRedConcrete implements Listener {
 
                 if (isEmpty || notStarted) {
                     player.teleport(world.getSpawnLocation());
+                    //todo
+                    //надо чтобы нельзя тута было тепаться в миры с красной и серой шерстью
+                    //значит он расчитует на listener teleport
                     player.sendMessage("§aYou joined: " + worldName);
                     return;
                 }

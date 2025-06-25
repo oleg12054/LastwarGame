@@ -1,7 +1,7 @@
-name: LastwarGame
+name: LastWarGame
 version: 1.0
 main: org.lastwar_game.lastwargame.LastWarPlugin
-api-version: 1.19
+api-version: 1.20
 depend: [LastWarGameLogic]
 author: YourName
 description: Плагин для выбора серверов и подготовки к игре

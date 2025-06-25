@@ -1,18 +1,36 @@
 package org.lastwar_game.lastwargame.managers;
 
 import org.bukkit.*;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
+import org.bukkit.boss.BossBar;
+import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.inventory.meta.FireworkMeta;
+import org.bukkit.persistence.PersistentDataType;
+import org.example.gamelogic.lastwargamelogic.LastWarGameLogic;
+import org.example.gamelogic.lastwargamelogic.deathsystem.DeathSpectatorListener;
+import org.example.gamelogic.lastwargamelogic.flag.FlagSpawner;
+import org.example.gamelogic.lastwargamelogic.privat.CoreSpawner;
+import org.bukkit.util.Vector;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+
+
+
 
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 import org.lastwar_game.lastwargame.GUI.ClassSelectionGUI;
+import org.lastwar_game.lastwargame.GUI.ServerSelectionGUI;
 import org.lastwar_game.lastwargame.LastWarPlugin;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
@@ -22,15 +40,19 @@ import org.bukkit.Material;
 import org.bukkit.World;
 
 
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.lastwar_game.lastwargame.managers.LobbyItems.*;
 
 public class GameManager {
+    private JavaPlugin plugin;
+
     private static GameManager instance; // статическая переменная instance
     private final Map<String, List<Player>> gameWorldPlayers = new HashMap<>();
     private final Map<UUID, String> playerTeams = new HashMap<>();
@@ -39,14 +61,19 @@ public class GameManager {
     private final Map<String, BukkitRunnable> gameTimers = new HashMap<>(); // Таймеры для каждого мира
     private final List<String> classOptions = Arrays.asList("Warrior", "Archer", "Mage", "Tank", "Assassin", "Shieldbearer", "Berserker", "Paladin", "Alchemist", "Necromancer");
     private final Set<UUID> lockedTeams = new HashSet<>(); // игроки, которые уже не могут менять команду
+    private final Map<String, BossBar> bossBars = new HashMap<>();
+
 
     private final Map<UUID, Location> frozenPlayers = new HashMap<>();
+
+    public void init(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
 
 
     /** ✅ Проверяет, можно ли начать игру в мире **/
     public void checkGameStart(String worldName) {
         List<Player> players = getPlayersInWorld(worldName);
-        Bukkit.broadcastMessage("DEBUG: Checking game start in " + worldName + " with " + players.size() + " players.");
 
         if (players.size() >= 2 && players.size() <= 10) {
             if (gameTimers.containsKey(worldName)) {
@@ -58,8 +85,6 @@ public class GameManager {
 
     /** ✅ Запускает таймер начала игры **/
     private void startGameCountdown(String worldName, List<Player> players) {
-        //TODO -
-        Bukkit.broadcastMessage("§aThe game in " + worldName + " will start in 15 seconds...");
 
         for (Player player : players) {
             giveTeamSelectionItem(player);
@@ -73,7 +98,6 @@ public class GameManager {
                 List<Player> updatedPlayers = getPlayersInWorld(worldName);
 
                 if (updatedPlayers.size() < 2) {
-                    Bukkit.broadcastMessage("§cGame start canceled in " + worldName + ", not enough players!");
                     gameTimers.remove(worldName);
                     this.cancel();
                     return;
@@ -207,7 +231,6 @@ public class GameManager {
         if (gameTimers.containsKey(worldName)) {
             gameTimers.get(worldName).cancel();
             gameTimers.remove(worldName);
-            Bukkit.broadcastMessage("§cGame start canceled in " + worldName + ", not enough players!");
         }
     }
 
@@ -346,6 +369,7 @@ public class GameManager {
         }
 
         playerClasses.put(player.getUniqueId(), className);
+        Bukkit.broadcastMessage("§e" + player.getName() + " took " + className);
         takenClasses.put(className, player.getUniqueId());
         return true;
     }
@@ -524,43 +548,148 @@ public class GameManager {
 
     /** ✅ Начинает игру **/
     private void startGame(String worldName) {
+
+
+        World world = Bukkit.getWorld(worldName);
+        if (world == null) {
+            Bukkit.getLogger().warning("World not found: " + worldName);
+            return;
+        }
+        replaceWoolOnTeams(world);
+
+        LastWarGameLogic.addActiveGameWorld(world);
+
+
         Bukkit.broadcastMessage("§aThe game starts now!");
         // ✅ Обновляем значение scoreboard для isClassSelectionStarted = 0 && isGameStarted = 1
         Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
         Objective objective = scoreboard.getObjective(worldName);
+        // ✅ Запускаем проверку окончания игры
+        new GameEndCheckerTask(worldName, LastWarPlugin.getInstance())
+                .runTaskTimer(LastWarPlugin.getInstance(), 0L, 100L); // каждые 5 секунд (100 тиков)
+
+        // ✅ Сбрасываем DeathCount у всех игроков в этом мире
+        Objective deathObj = scoreboard.getObjective("DeathCount");
+        if (deathObj != null) {
+            for (Player player : Bukkit.getWorld(worldName).getPlayers()) {
+                deathObj.getScore(player.getName()).setScore(0);
+            }
+        } else {
+            Bukkit.getLogger().warning("[LastWar] Objective DeathCount not found when starting game.");
+        }
+
+        createAndStartBossBarr(worldName);
+
+        //проверка гола если гол то фриз и тд
+        new GoalMonitorTask(worldName).runTaskTimer(LastWarPlugin.getInstance(), 0L, 20L); // каждые 20 тиков (1 сек)
+
         if (objective != null) {
             objective.getScore("isClassSelectionStarted").setScore(0);
             objective.getScore("isGameStarted").setScore(1);
         } else {
             Bukkit.getLogger().warning("[LastWar] Objective for world " + worldName + " not found when starting game.");
         }
-        /*
-        Plugin plugin = Bukkit.getPluginManager().getPlugin("LastWarGameLogic");
-        if (plugin != null && plugin.isEnabled()) {
-            CoreSpawner coreSpawner = ((LastWarGameLogic) plugin).getCoreSpawner();
-            World world = Bukkit.getWorld("lastwarGame1"); // или другой мир
-            if (world != null) {
-                coreSpawner.spawnCoresForce(world);
-            }
-        }
 
-         */
+
+
 
 
         freezeTime(worldName);
     }
+    public static void scheduleTimeout(World world) {
+        JavaPlugin plugin = LastWarPlugin.getInstance(); // или передай как параметр
+
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+                Objective obj = scoreboard.getObjective(world.getName());
+                if (obj == null) return;
+
+                int redScore = obj.getScore("RED").getScore();
+                int blueScore = obj.getScore("BLUE").getScore();
+
+                // если ничья, ничего не делаем — пусть GameEndCheckerTask активирует овертайм
+                if (redScore == blueScore) {
+                    plugin.getLogger().info("[LastWar] Timeout reached, but it's a tie — waiting for overtime logic.");
+                    return;
+                }
+
+                GameManager.handleGameEndAfter600Seconds(world, plugin);
+            }
+        }.runTaskLater(plugin, 600 * 20L); // 600 секунд = 600 * 20 тиков
+    }
+
+    public void replaceWoolOnTeams(World world){
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+        Team red = scoreboard.getTeam("RED");
+        Team blue = scoreboard.getTeam("BLUE");
+
+        if (red == null || blue == null) {
+            Bukkit.getLogger().warning("[LastWar] RED or BLUE team not found in scoreboard.");
+            return;
+        }
+
+        for (Player player : world.getPlayers()) {
+            boolean assigned = false;
+
+            // Ищем RED или BLUE шерсть в инвентаре
+            for (ItemStack item : player.getInventory()) {
+                if (item == null) continue;
+
+                if (item.getType() == Material.RED_WOOL) {
+                    red.addEntry(player.getName());
+                    assigned = true;
+                    break;
+                } else if (item.getType() == Material.BLUE_WOOL) {
+                    blue.addEntry(player.getName());
+                    assigned = true;
+                    break;
+                }
+            }
+
+            if (!assigned) {
+                player.sendMessage("§eNo valid wool found in inventory. You were not added to any team.");
+            }
+
+            // Удаляем всю RED и BLUE шерсть из инвентаря
+            player.getInventory().remove(Material.RED_WOOL);
+            player.getInventory().remove(Material.BLUE_WOOL);
+        }
+
+
+    }
     public void freezeTime(String worldName) {
+        //take world and players
         World world = Bukkit.getWorld(worldName);
         if (world == null) return;
 
         List<Player> players = world.getPlayers();
         if (players.isEmpty()) return;
 
+        DeathSpectatorListener.respawnAllDeadPlayers(worldName, LastWarPlugin.getInstance());
+
         // ✅ Устанавливаем isFrozen = 1
         Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
         Objective objective = scoreboard.getObjective(worldName);
         if (objective != null) {
             objective.getScore("isFrozen").setScore(1);
+        }
+
+        //reset cores and spawn flag
+        Plugin plugin = Bukkit.getPluginManager().getPlugin("LastWarGameLogic");
+
+        if (plugin instanceof LastWarGameLogic logicMain && plugin.isEnabled()) {
+
+
+            CoreSpawner coreSpawner = logicMain.getCoreSpawner();
+
+            if (world != null) {
+                coreSpawner.spawnCoresForce(world);
+
+                FlagSpawner spawner = new FlagSpawner(logicMain);
+                spawner.spawnAtFixedLocation(world);
+            }
         }
 
         for (Player player : players) {
@@ -607,19 +736,284 @@ public class GameManager {
         }.runTaskTimer(LastWarPlugin.getInstance(), 0L, 20L);
     }
 
+    public void afterGoal(String worldName) {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                freezeTime(worldName);
+            }
+        }.runTaskLater(LastWarPlugin.getInstance(), 200L);
+    }
+    public void playGoalEffect(Location center, Color color) {
+        World world = center.getWorld();
+        if (world == null) return;
+
+        // Громкий звук
+        world.playSound(center, Sound.ENTITY_ENDER_DRAGON_DEATH, 10f, 1f);
+
+        // Фейерверки по кругу
+        for (int i = 0; i < 8; i++) {
+            Location fireworkLoc = center.clone().add(Math.cos(i * Math.PI / 4) * 1.2, 0.1, Math.sin(i * Math.PI / 4) * 1.2);
+            Firework fw = world.spawn(fireworkLoc, Firework.class);
+            FireworkMeta meta = fw.getFireworkMeta();
+            meta.addEffect(FireworkEffect.builder()
+                    .withColor(color)
+                    .withFade(Color.WHITE)
+                    .with(FireworkEffect.Type.BURST)
+                    .trail(true)
+                    .flicker(true)
+                    .build());
+            meta.setPower(0); // моментальный взрыв
+            fw.setFireworkMeta(meta);
+            fw.setVelocity(new Vector(0, 0.1, 0));
+            fw.detonate();
+        }
+    }
+
+
+
 
 
 
     public void endGame(World world) {
+
+        LastWarGameLogic.removeActiveGameWorld(world);
+
+
+
+        //get players
+        List<Player> players = Bukkit.getOnlinePlayers().stream()
+                .filter(p -> p.getWorld().equals(world))
+                .collect(Collectors.toList());
+
+        Scoreboard board = Bukkit.getScoreboardManager().getMainScoreboard();
+        Team red = board.getTeam("RED");
+        Team blue = board.getTeam("BLUE");
+
+        for (Player player : world.getPlayers()) {
+            if (red != null) red.removeEntry(player.getName());
+            if (blue != null) blue.removeEntry(player.getName());
+        }
+
+        BossBar bar = bossBars.remove(world.getName());
+        if (bar != null) {
+            bar.removeAll();
+        }
+
+        //tp player
+        for (Player player : players) {
+            removePlayerData(player.getUniqueId());
+            player.teleport(Bukkit.getWorld("world").getSpawnLocation()); // Лобби
+            LobbyItems.giveTo(player);
+        }
+
+
+
+
+
+
         // ✅ Выполняем команду /endgame от имени сервера
-        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "endgame");
+        //Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "endgame");
 
         // ✅ Выполняем команду /stop через 10.5 сек (210 тиков)
-        new BukkitRunnable() {
+       /*
+       new BukkitRunnable() {
             @Override
             public void run() {
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "stop");
             }
         }.runTaskLater(LastWarPlugin.getInstance(), 210L);
+        */
+
+        GameManager.getInstance().restartWorld(world.getName());
     }
+    public void restartWorld(String worldName) {
+        Plugin plugin = Bukkit.getPluginManager().getPlugin("Multiverse-Core");
+
+
+
+
+        if (plugin == null || !plugin.isEnabled()) {
+            Bukkit.getLogger().warning("[LastWar] Multiverse-Core is not available!");
+            return;
+        }
+
+        GameManager.getInstance().markWorldRestarting(worldName);
+
+
+        // Обнуляем значения RED и BLUE в objective этого мира
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+        Objective objective = scoreboard.getObjective(worldName);
+        if (objective != null) {
+            objective.getScore("RED").setScore(0);
+            objective.getScore("BLUE").setScore(0);
+            objective.getScore("Timer").setScore(0);
+            objective.getScore("isGameStarted").setScore(0);
+            objective.getScore("isFrozen").setScore(0);
+            objective.getScore("isGoalScored").setScore(0);
+            objective.getScore("isClassSelectionStarted").setScore(0);
+        }
+
+        // 1. Выгружаем и удаляем текущий мир
+        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "mv unload " + worldName);
+        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "mv delete -f " + worldName);
+
+        // 2. Клонируем из шаблона
+        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "mv clone lastwarGame0 " + worldName);
+
+        // 3. Загружаем мир
+        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "mv import " + worldName + " normal");
+
+
+        // 4. Сброс данных игроков
+        List<Player> players = Bukkit.getOnlinePlayers().stream()
+                .filter(p -> p.getWorld().getName().equals(worldName))
+                .map(p -> (Player) p) // это явно Player
+                .toList();
+
+
+
+        for (Player player : players) {
+            removePlayerData(player.getUniqueId());
+            player.teleport(Bukkit.getWorld("world").getSpawnLocation()); // в лобби
+            LobbyItems.giveTo(player); // или твой метод выдачи предметов
+        }
+
+        // 5. Проверка на старт
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                checkGameStart(worldName);
+            }
+        }.runTaskLater(LastWarPlugin.getInstance(), 100L); // ждём 5 секунд на загрузку мира
+
+
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                // все нужные действия после рестарта
+                GameManager.getInstance().unmarkWorldRestarting(worldName);
+
+                // ⏺ Перерисовываем GUI у всех, кто смотрит на сервера
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    if (player.getOpenInventory().getTitle().equals("Server Selection")) {
+                        ServerSelectionGUI.open(player);
+                    }
+                }
+            }
+        }.runTaskLater(plugin, 60L); // например, через 3 секунды после окончания
+
+    }
+    // GameManager.java
+
+    public static void handleGameEndAfter600Seconds(World world, JavaPlugin plugin) {
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+        Objective objective = scoreboard.getObjective(world.getName());
+        if (objective == null) return;
+
+
+        // 3. Получение очков
+        int redScore = objective.getScore("RED").getScore();
+        int blueScore = objective.getScore("BLUE").getScore();
+
+        if (redScore > blueScore) {
+            Bukkit.broadcastMessage("§c§lRED wins the match!");
+            scheduleFinalEnd(world, plugin, 15);
+        } else if (blueScore > redScore) {
+            Bukkit.broadcastMessage("§b§lBLUE wins the match!");
+            scheduleFinalEnd(world, plugin, 15);
+        } else {
+            Bukkit.broadcastMessage("§6§lIt's a draw! Entering §eOVERTIME §6for 2 more minutes!");
+
+            // ⏱ Overtime на 2 минуты (120 сек)
+            new BukkitRunnable() {
+                int seconds = 120;
+
+                @Override
+                public void run() {
+                    if (seconds <= 0) {
+                        Bukkit.broadcastMessage("§c§lOvertime is over!");
+                        GameManager.handleGameEndAfter600Seconds(world, plugin); // Повторный вызов
+                        this.cancel();
+                        return;
+                    }
+                    seconds--;
+                }
+            }.runTaskTimer(plugin, 0L, 20L);
+        }
+    }
+
+    private static void scheduleFinalEnd(World world, JavaPlugin plugin, int delaySeconds) {
+
+        NamespacedKey flagKey = new NamespacedKey(plugin, "flag");
+
+        // 1. Удаление всех флагов с карты
+        Plugin logicMain = Bukkit.getPluginManager().getPlugin("LastWarGameLogic");
+        CoreSpawner spawner = new CoreSpawner((JavaPlugin) logicMain);
+        spawner.clearAllArmorStands(world);
+
+        // 3. Звук смерти дракона для всех игроков в этом мире
+        for (Player player : world.getPlayers()) {
+            player.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_DEATH, 10f, 1f);
+        }
+
+
+
+        // 2. Удаление флага из инвентарей игроков (слот 4)
+        for (Player player : world.getPlayers()) {
+            player.getInventory().clear(4); // Слот 4 = центр хотбара
+        }
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                GameManager.getInstance().endGame(world);
+            }
+        }.runTaskLater(plugin, delaySeconds * 20L); // 15 сек * 20 тиков
+    }
+
+
+
+
+    private final Set<String> restartingWorlds = new HashSet<>();
+
+    public void markWorldRestarting(String worldName) {
+        restartingWorlds.add(worldName);
+    }
+
+    public void unmarkWorldRestarting(String worldName) {
+        restartingWorlds.remove(worldName);
+    }
+
+    public boolean isWorldRestarting(String worldName) {
+        return restartingWorlds.contains(worldName);
+    }
+    public void createAndStartBossBarr(String worldName){
+        BossBar bar = Bukkit.createBossBar("Time Left", BarColor.YELLOW, BarStyle.SOLID);
+        bossBars.put(worldName, bar);
+
+        for (Player player : Bukkit.getWorld(worldName).getPlayers()) {
+            bar.addPlayer(player);
+        }
+
+        int[] time = {600}; // 10 minutes
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (time[0] <= 0) {
+                    bar.setProgress(1.0); // full bar (справа)
+                    bar.setTitle("§eTime's up!");
+                    this.cancel();
+                    return;
+                }
+
+                double progress = 1.0 - (time[0] / 600.0); // от 0.0 до 1.0
+                bar.setProgress(progress);
+                bar.setTitle("§eTime Left: " + time[0] + "s");
+                time[0]--;
+            }
+        }.runTaskTimer(LastWarPlugin.getInstance(), 0L, 20L);
+
+    }
+
+
 }

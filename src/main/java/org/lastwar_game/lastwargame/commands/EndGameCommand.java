@@ -45,33 +45,9 @@ public class EndGameCommand implements CommandExecutor {
 
         Bukkit.broadcastMessage("§cThe game has been stopped manually!");
 
-        // ✅ Очистка инвентарей и выдача лобби-предметов
-        for (Player p : world.getPlayers()) {
-            p.getInventory().clear();
-            LobbyItems.giveCompass(p, "§eSelect Game");
-            LobbyItems.givePaper(p, "§bJoin Available Game");
-            LobbyItems.giveRedConcrete(p, "§cReturn to HUB");
-        }
+        GameManager gm = GameManager.getInstance();
+        gm.endGame(world);
 
-        // ✅ Телепорт в лобби и финальная очистка через 5 сек
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                World lobby = Bukkit.getWorld("world");
-                if (lobby == null) return;
-
-                for (Player p : world.getPlayers()) {
-                    p.teleport(new Location(lobby, 118.5, 68.01, -183.5, 90, 0));
-                    p.getInventory().clear();
-                    LobbyItems.giveCompass(p, "§eSelect Game");
-                    LobbyItems.givePaper(p, "§bJoin Available Game");
-                    LobbyItems.giveRedConcrete(p, "§cReturn to HUB");
-                    p.sendMessage("§aYou have been returned to the lobby.");
-                }
-
-                gameManager.resetWorldState(world.getName());
-            }
-        }.runTaskLater(LastWarPlugin.getInstance(), 210L); // 5 секунд = 100 тиков
 
         return true;
     }

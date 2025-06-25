@@ -1,13 +1,19 @@
 package org.lastwar_game.lastwargame;
 
+import org.bukkit.Bukkit;
+import org.bukkit.World;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scoreboard.Objective;
+import org.bukkit.scoreboard.Scoreboard;
 import org.lastwar_game.lastwargame.commands.EndGameCommand;
 import org.lastwar_game.lastwargame.commands.StopCommand;
 import org.lastwar_game.lastwargame.initializers.ScoreboardInitializer;
 import org.lastwar_game.lastwargame.listeners.*;
 import org.lastwar_game.lastwargame.listeners.GUI.*;
 import org.lastwar_game.lastwargame.managers.GameManager;
+import org.lastwar_game.lastwargame.managers.GoalMonitorTask;
 import org.lastwar_game.lastwargame.managers.LobbyManager;
+import org.lastwar_game.lastwargame.managers.ServerSelectionAutoRefreshTask;
 
 public class LastWarPlugin extends JavaPlugin {
 
@@ -38,12 +44,33 @@ public class LastWarPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ListenerPaperRedConcrete(), this);
         getServer().getPluginManager().registerEvents(new PlayerMovementFreezeListener(), this);
 
+        ServerSelectionAutoRefreshTask.start(this);
+
+        GameManager.getInstance().init(this);
+
+
         //взять все миры и создать скорборды для каждого из них
         ScoreboardInitializer.initializeAll();
 
 
-
         getLogger().info("[LastWar] Плагин запущен!");
+
+        // Перезапуск зависших активных миров
+        for (World world : Bukkit.getWorlds()) {
+            if (!world.getName().startsWith("lastwarGame")) continue;
+
+            Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+            Objective objective = scoreboard.getObjective(world.getName());
+            if (objective == null) continue;
+
+            int isGameStarted = objective.getScore("isGameStarted").getScore();
+            if (isGameStarted == 1) {
+                getLogger().info("Restarting leftover active game in world: " + world.getName());
+                GameManager.getInstance().endGame(world);
+            }
+        }
+
+
     }
 
     @Override

@@ -8,6 +8,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.lastwar_game.lastwargame.GameWorlds; // 👈 импортируешь общий класс
+import org.lastwar_game.lastwargame.managers.GameManager;
 
 import java.util.Arrays;
 
@@ -36,8 +37,13 @@ public class ServerSelectionGUI {
                         .getScore() == 1;
             }
 
+            boolean isRestarting = GameManager.getInstance().isWorldRestarting(worldName);
+
             Material woolColor;
-            if (isStarted || isClassSelection) {
+            if (isRestarting) {
+                woolColor = Material.BLACK_WOOL;
+
+            } else if (isStarted || isClassSelection) {
                 woolColor = Material.RED_WOOL;
             } else if (playerCount >= 4) {
                 woolColor = Material.YELLOW_WOOL;
@@ -45,12 +51,21 @@ public class ServerSelectionGUI {
                 woolColor = Material.GREEN_WOOL;
             }
 
+
             ItemStack item = createGuiItem(woolColor, "§a" + worldName, "§7игроков: §e" + playerCount + "§7/10");
             gui.setItem(i, item);
         }
 
         player.openInventory(gui);
     }
+    public static void refreshForAllViewers() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (player.getOpenInventory().getTitle().equals("Server Selection")) {
+                ServerSelectionGUI.open(player);
+            }
+        }
+    }
+
 
     private static ItemStack createGuiItem(Material material, String name, String lore) {
         ItemStack item = new ItemStack(material);

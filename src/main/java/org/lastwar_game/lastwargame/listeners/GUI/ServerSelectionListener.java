@@ -52,6 +52,7 @@ public class ServerSelectionListener implements Listener {
         if (world != null) {
             player.teleport(world.getSpawnLocation());
             player.getInventory().clear();
+            //когда нажимаем через компас мы тута даем только шерсть
             GameManager.getInstance().giveTeamSelectionItem(player); // ✅ Выдаём шерсть выбора команды
             player.closeInventory();
         } else {

@@ -36,4 +36,15 @@ public class LobbyItems {
         }
         player.getInventory().setItem(8, concrete);
     }
+
+    public static void giveTo(Player player) {
+        player.getInventory().clear();
+
+        giveCompass(player, "§eSelect Game");
+        //givePaper(player, "§bJoin Available Game");
+        giveRedConcrete(player, "§cReturn to HUB");
+
+        player.updateInventory();
+    }
+
 }
