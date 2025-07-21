@@ -33,6 +33,7 @@ public class LobbyManager {
 
             // Получаем значение scoreboard objective `isGameStarted`
             boolean isStarted = false;
+            boolean isClassSelectStarted = false;
             if (Bukkit.getScoreboardManager().getMainScoreboard().getObjective(worldName) != null) {
                 isStarted = Bukkit.getScoreboardManager()
                         .getMainScoreboard()
@@ -42,10 +43,18 @@ public class LobbyManager {
                                 .getObjective(worldName)
                                 .getScore("isGameStarted")
                                 .getScore() == 1;
+                isClassSelectStarted = Bukkit.getScoreboardManager()
+                        .getMainScoreboard()
+                        .getObjective(worldName) != null &&
+                        Bukkit.getScoreboardManager()
+                                .getMainScoreboard()
+                                .getObjective(worldName)
+                                .getScore("isClassSelectionStarted")
+                                .getScore() == 1;
             }
 
             Material woolColor;
-            if (isStarted) {
+            if (isStarted || isClassSelectStarted) {
                 woolColor = Material.RED_WOOL; // Мир заполнен
             } else if (playerCount >= 4) {
                 woolColor = Material.YELLOW_WOOL; // игра скоро начнется

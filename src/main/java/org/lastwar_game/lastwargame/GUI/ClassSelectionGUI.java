@@ -1,5 +1,6 @@
 package org.lastwar_game.lastwargame.GUI;
 
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -15,12 +16,10 @@ import java.util.Map;
 
 public class ClassSelectionGUI {
     private static final Map<String, Material> classIcons = Map.of(
-            "Warrior", Material.IRON_SWORD,
+            "LadyNagant", Material.RED_DYE,
             "Archer", Material.BOW,
-            "Mage", Material.BLAZE_POWDER,
             "Tank", Material.SHIELD,
-            "Berserker", Material.IRON_AXE,
-            "Necromancer", Material.ENDER_EYE
+            "Saske", Material.RED_DYE
     );
 
     public static void open(Player player) {
@@ -53,12 +52,13 @@ public class ClassSelectionGUI {
         ItemStack item = new ItemStack(material, 1);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(name);
-            meta.setLore(Arrays.asList(lore));
+            meta.displayName(Component.text(name)); // строго без цветов, если текстурпак зависит от точного совпадения
+            meta.lore(Arrays.asList(Component.text(lore)));
             item.setItemMeta(meta);
         }
         return item;
     }
+
 }
 
 //    public static void open(Player player) {

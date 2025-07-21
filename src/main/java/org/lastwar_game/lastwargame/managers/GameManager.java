@@ -59,7 +59,7 @@ public class GameManager {
     private final Map<UUID, String> playerClasses = new HashMap<>();
     private final Map<String, UUID> takenClasses = new HashMap<>(); // Добавляем список занятых классов
     private final Map<String, BukkitRunnable> gameTimers = new HashMap<>(); // Таймеры для каждого мира
-    private final List<String> classOptions = Arrays.asList("Warrior", "Archer", "Mage", "Tank", "Assassin", "Shieldbearer", "Berserker", "Paladin", "Alchemist", "Necromancer");
+    private final List<String> classOptions = Arrays.asList("LadyNagant", "Archer", "Tank", "Saske");
     private final Set<UUID> lockedTeams = new HashSet<>(); // игроки, которые уже не могут менять команду
     private final Map<String, BossBar> bossBars = new HashMap<>();
 
@@ -304,6 +304,11 @@ public class GameManager {
 
     /** ✅ Запускает процесс выбора классов **/
     private void startClassSelection(List<Player> players, String worldName) {
+        for (Player player : players) {
+            for (String tag : player.getScoreboardTags()) {
+                player.removeScoreboardTag(tag);
+            }
+        }
         List<Player> queue = new ArrayList<>(players);
         Collections.shuffle(queue);
         processClassSelection(queue, worldName);
@@ -346,6 +351,7 @@ public class GameManager {
         for (String className : classOptions) {
             if (!playerClasses.containsValue(className)) {
                 playerClasses.put(player.getUniqueId(), className);
+                player.addScoreboardTag(className);
                 Bukkit.broadcastMessage("§e" + player.getName() + " was assigned a random class: " + className);
                 break;
             }
@@ -369,6 +375,7 @@ public class GameManager {
         }
 
         playerClasses.put(player.getUniqueId(), className);
+        player.addScoreboardTag(className);
         Bukkit.broadcastMessage("§e" + player.getName() + " took " + className);
         takenClasses.put(className, player.getUniqueId());
         return true;
@@ -476,6 +483,7 @@ public class GameManager {
     /** ✅ Назначает игрока в команду */
     private void assignPlayerToTeam(Player player, String team) {
         playerTeams.put(player.getUniqueId(), team);
+
         player.sendMessage(ChatColor.GREEN + "You have been assigned to " + (team.equals("RED") ? ChatColor.RED + "Red Team!" : ChatColor.BLUE + "Blue Team!"));
     }
 
@@ -559,6 +567,15 @@ public class GameManager {
 
         LastWarGameLogic.addActiveGameWorld(world);
 
+        // Выдача предметов по классам
+        for (Player player : Bukkit.getWorld(worldName).getPlayers()) {
+            String playerClass = getPlayerClass(player);
+            if (playerClass != null) {
+                ClassItemManager.giveItemsForTaggedClass(player);
+            }
+        }
+
+
 
         Bukkit.broadcastMessage("§aThe game starts now!");
         // ✅ Обновляем значение scoreboard для isClassSelectionStarted = 0 && isGameStarted = 1
@@ -617,7 +634,7 @@ public class GameManager {
 
                 GameManager.handleGameEndAfter600Seconds(world, plugin);
             }
-        }.runTaskLater(plugin, 600 * 20L); // 600 секунд = 600 * 20 тиков
+        }.runTaskLater(plugin, 1200 * 20L); // 600 секунд = 600 * 20 тиков
     }
 
     public void replaceWoolOnTeams(World world){
@@ -791,9 +808,17 @@ public class GameManager {
         Team blue = board.getTeam("BLUE");
 
         for (Player player : world.getPlayers()) {
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "setclass Clear " + player);
             if (red != null) red.removeEntry(player.getName());
             if (blue != null) blue.removeEntry(player.getName());
         }
+
+        for (Player player : players) {
+            for (String tag : player.getScoreboardTags()) {
+                player.removeScoreboardTag(tag);
+            }
+        }
+
 
         BossBar bar = bossBars.remove(world.getName());
         if (bar != null) {
@@ -855,7 +880,6 @@ public class GameManager {
         }
 
         // 1. Выгружаем и удаляем текущий мир
-        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "mv unload " + worldName);
         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "mv delete -f " + worldName);
 
         // 2. Клонируем из шаблона
@@ -916,6 +940,11 @@ public class GameManager {
         int redScore = objective.getScore("RED").getScore();
         int blueScore = objective.getScore("BLUE").getScore();
 
+        if (objective == null || objective.getScore("isGameStarted").getScore() == 0) {
+            Bukkit.getLogger().info("[LastWar] Overtime task cancelled because game has ended.");
+            return;
+        }
+
         if (redScore > blueScore) {
             Bukkit.broadcastMessage("§c§lRED wins the match!");
             scheduleFinalEnd(world, plugin, 15);
@@ -927,23 +956,35 @@ public class GameManager {
 
             // ⏱ Overtime на 2 минуты (120 сек)
             new BukkitRunnable() {
-                int seconds = 120;
+                int seconds = 180;
 
                 @Override
                 public void run() {
+                    Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+                    Objective objective = scoreboard.getObjective(world.getName());
+
+
                     if (seconds <= 0) {
-                        Bukkit.broadcastMessage("§c§lOvertime is over!");
-                        GameManager.handleGameEndAfter600Seconds(world, plugin); // Повторный вызов
-                        this.cancel();
-                        return;
+                        if (objective == null || objective.getScore("isGameStarted").getScore() == 0) {
+                            this.cancel();
+                            return;
+                        }else{
+                            Bukkit.broadcastMessage("§c§lOvertime is over!");
+                            GameManager.handleGameEndAfter600Seconds(world, plugin);
+                            this.cancel();
+                            return;
+                        }
+
                     }
+
                     seconds--;
                 }
             }.runTaskTimer(plugin, 0L, 20L);
+
         }
     }
 
-    private static void scheduleFinalEnd(World world, JavaPlugin plugin, int delaySeconds) {
+    public static void scheduleFinalEnd(World world, JavaPlugin plugin, int delaySeconds) {
 
         NamespacedKey flagKey = new NamespacedKey(plugin, "flag");
 
@@ -988,32 +1029,57 @@ public class GameManager {
         return restartingWorlds.contains(worldName);
     }
     public void createAndStartBossBarr(String worldName){
-        BossBar bar = Bukkit.createBossBar("Time Left", BarColor.YELLOW, BarStyle.SOLID);
+        BossBar bar = Bukkit.createBossBar("", BarColor.WHITE, BarStyle.SOLID);
         bossBars.put(worldName, bar);
 
         for (Player player : Bukkit.getWorld(worldName).getPlayers()) {
             bar.addPlayer(player);
         }
 
-        int[] time = {600}; // 10 minutes
+        int[] time = {1200}; // 10 минут = 600 секунд
+
         new BukkitRunnable() {
             @Override
             public void run() {
-                if (time[0] <= 0) {
-                    bar.setProgress(1.0); // full bar (справа)
-                    bar.setTitle("§eTime's up!");
+                Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+                Objective objective = scoreboard.getObjective(worldName);
+                if (objective == null) {
+                    bar.setTitle("§cError: Objective not found");
                     this.cancel();
                     return;
                 }
 
-                double progress = 1.0 - (time[0] / 600.0); // от 0.0 до 1.0
-                bar.setProgress(progress);
-                bar.setTitle("§eTime Left: " + time[0] + "s");
-                time[0]--;
-            }
-        }.runTaskTimer(LastWarPlugin.getInstance(), 0L, 20L);
+                int redScore = objective.getScore("RED").getScore();
+                int blueScore = objective.getScore("BLUE").getScore();
 
+                // 🟥 Цвет бара в зависимости от лидера
+                if (redScore > blueScore) {
+                    bar.setColor(BarColor.RED);
+                } else if (blueScore > redScore) {
+                    bar.setColor(BarColor.BLUE);
+                } else {
+                    bar.setColor(BarColor.PURPLE);
+                }
+
+                // 🕒 Время и счёт
+                String title = "§cRED: " + redScore + "  §7|  §9BLUE: " + blueScore + "    §eTime Left: " + time[0] + "s";
+                bar.setTitle(title);
+
+                // 📊 Прогресс (обратный отсчёт)
+                double progress = 1.0 - (time[0] / 1200.0);
+                bar.setProgress(progress);
+
+                time[0]--;
+                if (time[0] < 0) {
+                    bar.setTitle("§eTime's up!");
+                    World world = Bukkit.getWorld(worldName);
+                    handleGameEndAfter600Seconds(world,plugin);
+                    this.cancel();
+                }
+            }
+        }.runTaskTimer(LastWarPlugin.getInstance(), 0L, 20L); // Каждую секунду
     }
+
 
 
 }
